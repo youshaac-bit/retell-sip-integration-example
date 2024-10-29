@@ -14,13 +14,7 @@ jambonz also provides value-added features that you can make use of, such as ans
 
 This application makes use of the Retell AI [Sip Endpoint](https://docs.retellai.com/make-calls/custom-telephony#method-2-dial-to-sip-endpoint).
 
-This is intended to be a sample application that you can start with and later extend. It currently supports these features:
-
-- inbound calls are connected to your Retell AI agent for gathering information.
-- you can use the jambonz REST api to make an outbound call via a sip trunk you have added and the connect that call to your Retell agent
-- you can receive webhooks from Retell for agent events
-
-These features are described in more detail below.
+This is intended to be a sample application that you can start with and later extend. It currently supports both inbound and outbound calling. Additionally, it supports receiving webhooks from Retell with agent events during a call.
 
 ## Installing
 
@@ -43,10 +37,10 @@ RETELL_API_KEY=xxxx RETELL_AGENT_ID=agent_yyyy node app.js
 ```
 
 ### Inbound calls
-To use this application with an inbound call simply configure your jambonnz system to route calls from your carrier/PBX to this application.  In jambonz you can also route calls by phone number to applications if you wish.  The incoming call will be connected immediately to your Retell agent.
+To use this application with an inbound call simply configure your jambonz system to route incoming calls to this application. The application will then connect the incoming call to your Retell agent.
 
 ### Outbound calls
-To use this application for outbound calls, use the jambonz REST API to [create a new call](https://api.jambonz.org/#243a2edd-7999-41db-bd0d-08082bbab401).  To use this you will need to know:
+To use this application for outbound calls, use the [jambonz REST API](https://api.jambonz.org/#243a2edd-7999-41db-bd0d-08082bbab401) to create a new call.  To do this you will need to know:
 
 - your jambonz account_sid
 - your jambonz api key
@@ -71,11 +65,18 @@ curl --location -g 'https:/{{baseUrl}}/v1/Accounts/{{account_sid}}/Calls' \
 
 Of course, substitute in your own from and to phone numbers.  The example above assumes that you have created a BYOC trunk on jambonz that you will use to outdial the user.
 
+## Various features
+
+### Receiving agent events
+To receive agent events, go to the Webhook Settings panel in the Retell dashboard for your agent and add the URL where this application is running, with a path of "/agent-events".  The code [here](./lib/webhooks/endpoints/agent-events.js) will be executed.  Currently this code simply logs they event payloads but you can change to suit your needs.
+
 ## I'm new to jambonz and I need more help!
 
-Got you covered.  Easiest way to get started is to [create a free trial account on jambonz.cloud](https://jambonz.cloud/register).  Once you have an account, add a Carrier for your chosen SIP trunking provider.  Then add an Application that contains the websocket endpoint that this application exposes.  Add a phone number from your Carrier and connect it to the Application, and you are set to go.
+Got you covered.  Easiest way to get started is to [create a free trial account on jambonz.cloud](https://jambonz.cloud/register).  Once you have an account, add a Carrier for your chosen SIP trunking provider.  Then add an Application that contains the websocket endpoint that this application exposes.  The URL of the application should be `wss://your.specific.domain/retell`.  In other words, just make sure the protocol is wss and the path is /retell, the host part will be specific to where you run your websocket application.  
 
-For more details, refer to the [blog post](https://blog.jambonz.org/using-jambonz-for-telephony-integration-with-retell-ai) I mentioned above.
+>> And note that you can always use [ngrok](https://ngrok.com/) to run the application locally on your laptop for testing.
+
+Then add a phone number from your Carrier and connect it to the Application, and you are set to go.  When you dial that number the call will be handled by your application, which will forward it on to your Retell agent.
 
 ## I have more questions!
 Join our Slack channel by going to https://joinslack/jambonz.org.
