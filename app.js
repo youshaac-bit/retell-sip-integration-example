@@ -1,38 +1,24 @@
-const assert = require('assert');
-assert.ok(process.env.RETELL_API_KEY, 'You must define the RETELL_API_KEY env variable');
-assert.ok(process.env.RETELL_AGENT_ID, 'You must define the RETELL_AGENT_ID env variable');
-assert.ok(process.env.JAMBONZ_ACCOUNT_SID, 'You must define the JAMBONZ_ACCOUNT_SID env variable');
-assert.ok(process.env.JAMBONZ_API_KEY, 'You must define the JAMBONZ_API_KEY env variable');
-assert.ok(process.env.JAMBONZ_REST_API_BASE_URL, 'You must define the JAMBONZ_REST_API_BASE_URL env variable');
-
 const express = require('express');
 const app = express();
-const opts = Object.assign({
-  timestamp: () => `, "time": "${new Date().toISOString()}"`,
-  level: process.env.LOGLEVEL || 'debug'
-});
-const logger = require('pino')(opts);
-const port = process.env.HTTP_PORT || 3000;
-const routes = require('./lib/routes');
-const {Retell} = require('retell-sdk');
-const retellClient = new Retell({
-  apiKey: process.env.RETELL_API_KEY
-});
+const {createServer} = require('http');
+const {createEndpoint} = require('@jambonz/node-client-ws');
+const server = createServer(app);
+const makeService = createEndpoint({server});
+const webhooks = require('./lib/webhooks');
+const logger = require('pino')({level: process.env.LOGLEVEL || 'info'});
+const port = process.env.WS_PORT || 3000;
+
 app.locals = {
   ...app.locals,
-  logger,
-  client: require('@jambonz/node-client')(process.env.JAMBONZ_ACCOUNT_SID, process.env.JAMBONZ_API_KEY, {
-    baseUrl: process.env.JAMBONZ_REST_API_BASE_URL
-  }),
-  callsInProgress: new Map(),
-  retellClient
+  logger
 };
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use('/', webhooks);
 
-app.use('/', routes);
+require('./lib/routes')({logger, makeService});
 
-app.listen(port, () => {
-  logger.info(`Example jambonz app listening at http://localhost:${port}`);
+server.listen(port, () => {
+  logger.info(`jambonz websocket server listening at http://localhost:${port}`);
 });

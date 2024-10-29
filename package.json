@@ -1,7 +1,7 @@
 {
-  "name": "retellai-shim",
+  "name": "retell-sip-api",
   "version": "0.0.1",
-  "description": "jambonz webhook application",
+  "description": "jambonz websocket application",
   "main": "app.js",
   "scripts": {
     "start": "node app",
@@ -10,15 +10,13 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@jambonz/node-client": "^0.3.76",
-    "debug": "^4.3.5",
+    "@jambonz/node-client-ws": "^0.1.57",
     "express": "^4.21.1",
-    "express-basic-auth": "^1.2.1",
-    "pino": "^9.2.0",
-    "undici": "^6.19.2"
+    "pino": "^9.5.0",
+    "undici": "^6.20.1"
   },
   "devDependencies": {
-    "eslint": "^9.5.0",
-    "eslint-plugin-promise": "^6.2.0"
+    "eslint": "^9.13.0",
+    "eslint-plugin-promise": "^7.1.0"
   }
 }
