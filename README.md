@@ -72,9 +72,9 @@ To receive agent events, go to the Webhook Settings panel in the Retell dashboar
 
 ## I'm new to jambonz and I need more help!
 
-Got you covered.  Easiest way to get started is to [create a free trial account on jambonz.cloud](https://jambonz.cloud/register).  Once you have an account, add a Carrier for your chosen SIP trunking provider.  Then add an Application that contains the websocket endpoint that this application exposes.  The URL of the application should be `wss://your.specific.domain/retell`.  In other words, just make sure the protocol is wss and the path is /retell, the host part will be specific to where you run your websocket application.  
+Got you covered.  Easiest way to get started is to [create a free trial account on jambonz.cloud](https://jambonz.cloud/register).  Once you have an account, add a Carrier for your chosen SIP trunking provider.  Then add an Application that contains the websocket endpoint that this application exposes.  The URL of the application should be `wss://your.specific.domain/retell`.  In other words, just make sure the protocol is wss and the path is /retell, the host part will be wherever you host this application.  
 
->> And note that you can always use [ngrok](https://ngrok.com/) to run the application locally on your laptop for testing.
+>> And note that you can always use [ngrok](https://ngrok.com/) to run the application locally on your laptop for testing!
 
 Then add a phone number from your Carrier and connect it to the Application, and you are set to go.  When you dial that number the call will be handled by your application, which will forward it on to your Retell agent.
 
