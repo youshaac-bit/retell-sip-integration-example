@@ -29,7 +29,7 @@ Retell provides two methods of custom telephony integration, and this applicatio
 In order to use Method 1 (Elastic SIP trunking) you have to create a "Carrier" in jambonz that points to Retell.  This carrier will have one outbound gateway and no inbound gateways since we are only sending calls to Retell and not receiving them.  (Outbound calls are placed using jambonz REST API and then we connect them to Retell once the user has answered, so it still looks like an inbound call to Retell).
 
 ##### Configuring jambonz
-So log into the jambonz portal and create a Carrier named 'Retell'.  Check the box for E.164 syntax, uncheck outbound authentication, and then add one SIP gateway that looks like this
+So log into the jambonz portal and create a Carrier named 'Retell'.  Check the box for E.164 syntax, uncheck outbound authentication, and then add one SIP gateway with their network address of `5t4n6j0wnrl.sip.livekit.cloud`.
 
 ![Retell oubound gateway](images/retell-carrier.png)
 
@@ -52,11 +52,11 @@ Finally, you need to add the phone number that you are receiving calls on from y
 - For termination URI enter a URI with the 'sip' scheme and the DNS of your sip realm in jambonz (you can find that under the Account tab), e.g. 'sip:mydomain.sip.jambonz.cloud'
 - For sip trunk username and password enter the username and password you created above on jambonz.
 
-After creating the phone number, associate it with the Retell agent you want to use
+After creating the phone number, associate it with the Retell agent you want to use.
 
 ##### Running the application using Method 1
 
-Now you are ready to test the application.  You must provide your Retell api key and the name of the Retell trunk that you created on jambonz
+Now you are ready to test the application.  You must provide your Retell api key and the name of the Retell Carrier that you created on jambonz
 ```bash
 RETELL_API_KEY=xxxxxxxxxx RETELL_TRUNK_NAME=Retell node app.js
 ```
