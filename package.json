@@ -16,7 +16,6 @@
     "undici": "^6.20.1"
   },
   "devDependencies": {
-    "eslint": "^9.13.0",
-    "eslint-plugin-promise": "^7.1.0"
+    "eslint-plugin-promise": "^6.2.0"
   }
 }

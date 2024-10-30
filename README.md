@@ -10,12 +10,6 @@ For those of you not familiar with jambonz, it is an open source (MIT-licensed) 
 
 jambonz also provides value-added features that you can make use of, such as answering machine detection and playing entry prompts and the like that may be more cost effective to do before connecting calls to the LLM.
 
-## Overview
-
-This application makes use of the Retell AI [Sip Endpoint](https://docs.retellai.com/make-calls/custom-telephony#method-2-dial-to-sip-endpoint).
-
-This is intended to be a sample application that you can start with and later extend. It currently supports both inbound and outbound calling. Additionally, it supports receiving webhooks from Retell with agent events during a call.
-
 ## Installing
 
 Having checked out this repo, do the usual:
@@ -23,17 +17,56 @@ Having checked out this repo, do the usual:
 npm ci
 ```
 
-## Configuring
+## Configuration
 
-There are two environment variables that are required:
+Retell provides two methods of custom telephony integration, and this application supports both:
+- [Method 1: Elastic SIP Trunking](https://docs.retellai.com/make-calls/custom-telephony#method-1-elastic-sip-trunking-recommended).  This is the method recommended by Retell, and is the default behavior for this application.
+- [Method 2: Dial to SIP Endpoint](https://docs.retellai.com/make-calls/custom-telephony#method-2-dial-to-sip-endpoint).  This method can alternatively be used, but one of the drawbacks of this method is that the built-in call transfer function that Retell provides will not work with it because Retell will not send a REFER when this method is used.
 
-- RETELL_API_KEY - your Retell api key
-- RETELL_AGENT_ID - your Retell agent id
+> Note: you can still implement call transfer when using method 2 by creating your own user function that instructs jambonz to transfer the call.
 
-Having done that you can simply run the app.
+### using Method 1
+In order to use Method 1 (Elastic SIP trunking) you have to create a "Carrier" in jambonz that points to Retell.  This carrier will have one outbound gateway and no inbound gateways since we are only sending calls to Retell and not receiving them.  (Outbound calls are placed using jambonz REST API and then we connect them to Retell once the user has answered, so it still looks like an inbound call to Retell).
 
+##### Configuring jambonz
+So log into the jambonz portal and create a Carrier named 'Retell'.  Check the box for E.164 syntax, uncheck outbound authentication, and then add one SIP gateway that looks like this
+
+![Retell oubound gateway](images/retell-carrier.png)
+
+Next, add a SIP client credential.  Click on "Clients" and add a sip client with a name and password.
+
+![Adding a sip client](images/jambonz-sip-client.png)
+
+
+#### Configuring Retell
+With method 1, Retell calls an inbound call webhook to get dynamic variables for the call.  This application provides an endpoint for an HTTP POST at [/inbound-webhook](./lib/webhooks/endpoints/inbound-webhook.js), so log into the Retell console and add this webhook.
+
+![Retell oubound gateway](images/retell-webhook.png)
+
+> Note: change the DNS name to that of your websocket server
+
+You'll note that this application also provides a webhook to receive agent events from Retell.  Currently [these are simply logged](./lib/webhooks/endpoints/agent-events.js) for informational purposes, but you may want to use this information in your application.
+
+Finally, you need to add the phone number that you are receiving calls on from your SIP trunking/DID provider in the Retell console. In the Retell Dashboard, select "Phone Numbers" and click the plus sign.  In the dropdown select "Connect to your number via SIP trunking".
+- Add the phone number in E.164 format (ie leading + followed by country code)
+- For termination URI enter a URI with the 'sip' scheme and the DNS of your sip realm in jambonz (you can find that under the Account tab), e.g. 'sip:mydomain.sip.jambonz.cloud'
+- For sip trunk username and password enter the username and password you created above on jambonz.
+
+After creating the phone number, associate it with the Retell agent you want to use
+
+##### Running the application using Method 1
+
+Now you are ready to test the application.  You must provide your Retell api key and the name of the Retell trunk that you created on jambonz
 ```bash
-RETELL_API_KEY=xxxx RETELL_AGENT_ID=agent_yyyy node app.js
+RETELL_API_KEY=xxxxxxxxxx RETELL_TRUNK_NAME=Retell node app.js
+```
+
+### Using Method 2
+If instead you wish to use method 2 - Dial to SIP Endpoint you do not need to create a Carrier on jambonz.  No setup is needed on the jambonz side to use this method.  No setup is needed on the Retell side either; you do not need to add a phone number since we wont be dialing to a phone number, instead we will be calling the [Register Call](https://docs.retellai.com/api-references/register-call) api.
+
+To run using method 2, you need to specify your Retell api key and agent id.
+```bash
+RETELL_API_KEY=xxxxxxxxxxxxxx RETELL_AGENT_ID=agent_yyyyyyyyy node app.js
 ```
 
 ### Inbound calls
@@ -64,11 +97,6 @@ curl --location -g 'https:/{{baseUrl}}/v1/Accounts/{{account_sid}}/Calls' \
 ```
 
 Of course, substitute in your own from and to phone numbers.  The example above assumes that you have created a BYOC trunk on jambonz that you will use to outdial the user.
-
-## Various features
-
-### Receiving agent events
-To receive agent events, go to the Webhook Settings panel in the Retell dashboard for your agent and add the URL where this application is running, with a path of "/agent-events".  The code [here](./lib/webhooks/endpoints/agent-events.js) will be executed.  Currently this code simply logs they event payloads but you can change to suit your needs.
 
 ## I'm new to jambonz and I need more help!
 
