@@ -103,6 +103,7 @@ You can also place the outbound call from Retell to jambonz and have jambonz for
 
 - Add a sip credential in jambonz as described earlier.  If you have already added a credential for this you can use that but please note: the sip credential must **only** be used to authenticate calls from Retell.  Do not give it out or use it for other sip devices.
 - Make sure you have added a Carrier on jambonz that you want to use to complete the call, [as described here](https://blog.jambonz.org/using-jambonz-for-retell-custom-telephony#heading-on-jambonz-add-a-carriersip-trunk-for-your-pstn-provider).
+- Add your phone number on Retell, selecting "Connect to your number via SIP trunking" and add the phone number, your sip realm value on jambonz (e.g. "<yourdomain>.sip.jambonz.cloud") as the termination uri, and the sip credential username and password from above.
 
 When you run the application, start it as follows supplying the `PSTN_TRUNK_NAME` environment variable that refers to the name you assiged to your PSTN Carrier in jambonz as well `RETELL_SIP_CLIENT_USERNAME` which should have the sip credential username that you created on jambonz (the same value you added into Retell when configuring a number in the "SIP Trunk User Name" field of the "Connect to your number via SIP trunking" dialog).
 
