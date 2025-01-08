@@ -25,6 +25,9 @@ Retell provides two methods of custom telephony integration, and this applicatio
 
 > Note: you can still implement call transfer when using method 2 by creating your own user function that instructs jambonz to transfer the call.
 
+## Inbound calls
+To use this application with an inbound call simply configure your jambonz system to route incoming calls to this application. The application will then connect the incoming call to your Retell agent.
+
 ### using Method 1 (Preferred)
 In order to use Method 1 (Elastic SIP trunking) you have to create a "Carrier" in jambonz that points to Retell.  This carrier will have one outbound gateway and no inbound gateways since we are only sending calls to Retell and not receiving them.  (Outbound calls are placed using jambonz REST API and then we connect them to Retell once the user has answered, so it still looks like an inbound call to Retell).
 
@@ -54,15 +57,12 @@ Finally, you need to add the phone number that you are receiving calls on from y
 
 After creating the phone number, associate it with the Retell agent you want to use.
 
-### Inbound calls
-To use this application with an inbound call simply configure your jambonz system to route incoming calls to this application. The application will then connect the incoming call to your Retell agent.
-
 ##### Running the application using Method 1
 
 Now you are ready to test the application.  You must provide your Retell api key and the name of the Retell Carrier that you created on jambonz
 ```bash
 RETELL_API_KEY=xxxxxxxxxx RETELL_TRUNK_NAME=Retell node app.js
-```
+``` 
 
 ### Using Method 2
 If instead you wish to use method 2 - Dial to SIP Endpoint you do not need to create a Carrier on jambonz.  No setup is needed on the jambonz side to use this method.  No setup is needed on the Retell side either; you do not need to add a phone number since we wont be dialing to a phone number, instead we will be calling the [Register Call](https://docs.retellai.com/api-references/register-call) api.
@@ -71,6 +71,8 @@ To run using method 2, you need to specify your Retell api key and agent id.
 ```bash
 RETELL_API_KEY=xxxxxxxxxxxxxx RETELL_AGENT_ID=agent_yyyyyyyyy node app.js
 ```
+
+## Outbound calls
 
 ### Outbound calls option 1: from Retell (Preferred)
 You can place the outbound call from Retell to jambonz and have jambonz forward the call on to your carrier.  To use this method you must do the following:
