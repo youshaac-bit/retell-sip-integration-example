@@ -6,7 +6,7 @@ const server = createServer(app);
 const makeService = createEndpoint({server});
 const webhooks = require('./lib/webhooks');
 const logger = require('pino')({level: process.env.LOGLEVEL || 'info'});
-const port = process.env.WS_PORT || 3000;
+const port = process.env.WS_PORT || process.env.PORT || 3000;
 
 app.locals = {
   ...app.locals,

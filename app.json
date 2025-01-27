@@ -1,0 +1,17 @@
+{
+    "name": "Jambonz Hello World Websocket",
+    "description": "A Hello World using Jambonz Websocket",
+    "repository": "https://github.com/jambonz/retell-sip-integration-example",
+    "keywords": ["node", "express", "websocket", "jambonz", "retell"],
+    "env": {
+    "RETELL_TRUNK_NAME": {
+            "description": "The jambonz carrier name that connects to retell",
+    },
+    "PSTN_TRUNK_NAME": {
+        "description": "The jambonz carrier name that connects to your SIP carrier",
+    },
+    "RETELL_SIP_CLIENT_USERNAME": {
+        "description": "The Client username you created in jambonz"
+    }
+  }
+  
