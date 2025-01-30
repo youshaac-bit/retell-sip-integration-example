@@ -10,6 +10,11 @@ For those of you not familiar with jambonz, it is an open source (MIT-licensed) 
 
 jambonz also provides value-added features that you can make use of, such as answering machine detection and playing entry prompts and the like that may be more cost effective to do before connecting calls to the LLM.
 
+
+Deploy this application to your Heroku account with just a few clicks.
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy)
+
 ## Installing
 
 Having checked out this repo, do the usual:

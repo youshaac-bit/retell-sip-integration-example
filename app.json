@@ -1,0 +1,19 @@
+{
+"name": "jambonz RetellAI SIP Integration",
+"description": "The jambonz helper applicaiton for RetellAI integration",
+"repository": "https://github.com/jambonz/retell-sip-integration-example/tree/heroku",
+"logo": "https://www.jambonz.org/svg/jambonz.svg",
+"keywords": ["node", "express", "websocket", "jambonz", "retellai"],
+"success_url": "/success",
+"env": {
+    "RETELL_TRUNK_NAME": {
+      "description": "The name of the Carrier you configured in jambonz towards Retell"
+    },
+    "RETELL_SIP_CLIENT_USERNAME": {
+        "description":"The name of the Client you configured in jambonz for Retell"
+    },
+    "PSTN_TRUNK_NAME": {
+        "description":"The name of the Carrier you configured in jambonz towards your SIP service provider"
+    }
+  }
+}
