@@ -13,7 +13,7 @@ jambonz also provides value-added features that you can make use of, such as ans
 
 Deploy this application to your Heroku account with just a few clicks.
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy?template=[https://github.com/heroku/node-js-getting-started](https://github.com/jambonz/retell-sip-integration-example)
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy?template=https://github.com/jambonz/retell-sip-integration-example)
 
 ## Installing
 
