@@ -14,6 +14,10 @@
     },
     "PSTN_TRUNK_NAME": {
         "description":"The name of the Carrier you configured in jambonz towards your SIP service provider"
+    },
+    "DEFAULT_COUNTRY": {
+        "description":"The 2 *CHARACTER* ISO-3166 Country Code for your phone number eg US, GB, ES, see https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2 for values",
+        "required" : false
     }
   }
 }

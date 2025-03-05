@@ -125,6 +125,14 @@ curl --location -g 'https:/{{baseUrl}}/v1/Accounts/{{account_sid}}/Calls' \
 
 Of course, substitute in your own from and to phone numbers.  The example above assumes that you have created a BYOC trunk on jambonz that you will use to outdial the user.
 
+
+## Phone Number Formats
+Retell expects the TO number to be in e.164 format, thats the full internatioanl number, some carriers will send calls to Jambonz with numbers in a different format, known as National or Local, usually this starts with a 0.
+The application can now automatically reformat these numbers in to e.164 if you set the DEFAULT_COUNTRY environment variable. Heroku will prompt you for this when deploying the app.
+
+You should set the value to the ISO-3166 country code that your number is from, so if you have a German  number (the dialing code for the Germany is +49) set the DEFAULT_COUNTRY to `DE`.
+If you don't set a value for this then the applicaiton will just pass through to retell whatever number format the carrier sends us.
+
 ## I'm new to jambonz and I need more help!
 
 Got you covered.  Easiest way to get started is to [create a free trial account on jambonz.cloud](https://jambonz.cloud/register).  Once you have an account, add a Carrier for your chosen SIP trunking provider.  Then add an Application that contains the websocket endpoint that this application exposes.  The URL of the application should be `wss://your.specific.domain/retell`.  In other words, just make sure the protocol is wss and the path is /retell, the host part will be wherever you host this application.  
