@@ -18,6 +18,10 @@
     "DEFAULT_COUNTRY": {
         "description":"The 2 *CHARACTER* ISO-3166 Country Code for your phone number eg US, GB, ES, see https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2 for values",
         "required" : false
+    },
+    "OVERRIDE_FROM_USER": {
+      "description":"Value to use for From header in outbound calls to PSTN, original From callerID sent by Retell will be added to a Diversion header, use when SIPGATE is your carrier ",
+      "required" : false
     }
   }
 }
