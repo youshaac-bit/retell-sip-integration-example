@@ -1,4 +1,14 @@
 # retell-sip-integration-example
+---
+NOTICE
+This applicaiton should be considered deprecated as of July 2025, We now offer a Hosted Application that avoids the need to run your own instance of the app.
+
+This method is still current and will work for existing users or if you wish to customise the code but the simplest path is via the hosted applicaiton
+
+[https://docs.jambonz.org/tutorials/hosted-applications/retell]
+
+
+---
 
 This is a [jambonz](https://jambonz.org) [application](https://www.jambonz.org/docs/webhooks/overview/) that allows Retell AI users to connect their agents to any SIP trunking provider or PBX.
 
