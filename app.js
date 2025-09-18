@@ -17,51 +17,50 @@ app.locals = {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Helper function to create Retell phone call
-async function createRetellPhoneCall(callData) {
+// Helper function to register call with Retell
+function registerCallWithRetell(callData) {
   return new Promise((resolve, reject) => {
-    const data = JSON.stringify({
+    const postData = JSON.stringify({
       agent_id: process.env.RETELL_AGENT_ID,
-      from_number: callData.from,
-      to_number: callData.to,
-      direction: "outbound",
-      retell_llm_dynamic_variables: {
-        call_sid: callData.call_sid
-      }
+      from: callData.from,
+      to: callData.to,
+      direction: 'outbound',
+      call_sid: callData.call_sid
     });
 
     const options = {
       hostname: 'api.retellai.com',
-      path: '/v2/create-phone-call',
+      port: 443,
+      path: '/register-call',
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
         'Content-Type': 'application/json',
-        'Content-Length': data.length
+        'Content-Length': Buffer.byteLength(postData)
       }
     };
 
     const req = https.request(options, (res) => {
-      let body = '';
-      res.on('data', (chunk) => body += chunk);
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
         try {
-          const result = JSON.parse(body);
-          logger.info({result}, 'Retell create call response');
-          resolve(result);
+          const response = JSON.parse(data);
+          logger.info({response}, 'Retell registration response');
+          resolve(response);
         } catch (e) {
-          logger.error({error: e, body}, 'Failed to parse Retell response');
+          logger.error({error: e, data}, 'Failed to parse Retell response');
           reject(e);
         }
       });
     });
 
     req.on('error', (error) => {
-      logger.error({error}, 'Retell API request failed');
+      logger.error({error}, 'Failed to register with Retell');
       reject(error);
     });
-    
-    req.write(data);
+
+    req.write(postData);
     req.end();
   });
 }
@@ -69,162 +68,122 @@ async function createRetellPhoneCall(callData) {
 // WEBHOOK ROUTE - Handle outbound calls
 app.post('/outbound-call', async (req, res) => {
   logger.info('=== OUTBOUND CALL WEBHOOK TRIGGERED ===');
-  logger.info({body: req.body}, 'Call details received');
   
-  const { call_sid, call_status, from, to, sip_status } = req.body;
+  const { call_sid, call_status, from, to } = req.body;
+  
+  // Don't log sensitive data
+  logger.info({
+    call_sid,
+    call_status,
+    from,
+    to,
+    agent_id_prefix: process.env.RETELL_AGENT_ID ? process.env.RETELL_AGENT_ID.substring(0, 10) : 'not set'
+  }, 'Call details (sanitized)');
   
   if (call_status === 'in-progress') {
-    logger.info('Call answered, connecting to Retell AI...');
+    logger.info('Call answered, connecting to Retell via SIP...');
     
     try {
-      // METHOD 1: Direct WebSocket connection to Retell
+      // Register the call with Retell first
+      const retellResponse = await registerCallWithRetell({
+        call_sid,
+        from: from || '+27212067414',
+        to: to || '+27815164001'
+      });
+      
+      const retellCallId = retellResponse.call_id || retellResponse.retell_call_id;
+      
+      if (retellCallId) {
+        logger.info(`Retell call registered with ID: ${retellCallId}`);
+        
+        // Use dial verb with SIP URI (LiveKit Cloud endpoint for Retell)
+        const response = [
+          {
+            verb: "dial",
+            answerOnBridge: true,
+            target: [
+              {
+                type: "sip",
+                sipUri: `sip:${retellCallId}@5t4n6j0wnrl.sip.livekit.cloud`
+              }
+            ]
+          }
+        ];
+        
+        logger.info('Sending dial command to connect to Retell SIP endpoint');
+        res.json(response);
+      } else {
+        throw new Error('No call_id received from Retell');
+      }
+    } catch (error) {
+      logger.error({error: error.message}, 'Failed to setup Retell call');
+      
+      // Fallback: Simple dial to agent
       const response = [
         {
-          verb: "connect",
-          url: "wss://api.retellai.com/v1/websocket",
-          method: "websocket",
-          headers: {
-            "Authorization": `Bearer ${process.env.RETELL_API_KEY}`,
-            "Content-Type": "application/json",
-            "x-agent-id": process.env.RETELL_AGENT_ID
-          }
+          verb: "dial",
+          answerOnBridge: true,
+          target: [
+            {
+              type: "sip",
+              sipUri: `sip:${process.env.RETELL_AGENT_ID}@5t4n6j0wnrl.sip.livekit.cloud`
+            }
+          ]
         }
       ];
       
-      logger.info('Sending WebSocket connect to Retell');
-      logger.info({response: JSON.stringify(response)}, 'Connect verb');
+      logger.info('Using fallback: Direct dial to Retell agent');
       res.json(response);
-      
-    } catch (error) {
-      logger.error({error}, 'Failed to connect to Retell');
-      res.json([{
-        verb: "say",
-        text: "Sorry, there was a technical error.",
-        synthesizer: {
-          vendor: "elevenlabs",  // Using the configured TTS
-          voice: "Xb7hH8MSUJpSbSDYk0k2"
-        }
-      }]);
     }
     
   } else if (call_status === 'early-media') {
-    // Handle early media state
-    logger.info('Call in early-media state, waiting...');
+    logger.info('Call in early-media state');
     res.json([]);
   } else {
-    logger.info(`Call status: ${call_status} - no action`);
+    logger.info(`Call status: ${call_status}`);
     res.json([]);
   }
 });
 
 // Call status updates
 app.post('/call-status', (req, res) => {
-  const { call_status, sip_status, duration } = req.body;
+  const { call_status, duration } = req.body;
   logger.info({
     call_status,
-    sip_status,
     duration
   }, 'Call status update');
   
-  // Log WebSocket connection failures
-  if (call_status === 'completed' && duration < 2) {
-    logger.warn('Call ended quickly - possible WebSocket connection failure');
+  if (duration === 0 && call_status === 'completed') {
+    logger.warn('Call failed immediately - check SIP connection');
   }
   
   res.sendStatus(200);
 });
 
-// WebSocket status endpoint
-app.post('/websocket-status', (req, res) => {
-  logger.info({body: req.body}, 'WebSocket status from Jambonz');
-  res.sendStatus(200);
-});
-
-// Health check endpoint
+// Health check
 app.get('/', (req, res) => {
-  const hasKey = !!process.env.RETELL_API_KEY;
-  const hasAgent = !!process.env.RETELL_AGENT_ID;
-  
   res.json({ 
     status: 'running',
     message: 'Retell-Jambonz Integration Active',
-    method: 'Direct WebSocket Connection',
-    endpoints: ['/outbound-call', '/call-status', '/websocket-status'],
-    environment: {
-      retell_api_key: hasKey ? 'configured' : 'missing',
-      retell_agent_id: hasAgent ? 'configured' : 'missing',
-      agent_preview: hasAgent ? process.env.RETELL_AGENT_ID.substring(0, 20) + '...' : 'not set'
-    },
+    method: 'SIP Dial Method',
+    endpoints: ['/outbound-call', '/call-status'],
     timestamp: new Date().toISOString()
   });
 });
 
-// Test Retell API
+// Test Retell connection
 app.get('/test-retell', async (req, res) => {
-  try {
-    // First test: List agents
-    const options = {
-      hostname: 'api.retellai.com',
-      path: '/list-agents',
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    };
-
-    https.get(options, (response) => {
-      let body = '';
-      response.on('data', (chunk) => body += chunk);
-      response.on('end', () => {
-        try {
-          const data = JSON.parse(body);
-          
-          if (data.error) {
-            res.json({ 
-              success: false, 
-              error: data.error
-            });
-          } else {
-            const agents = Array.isArray(data) ? data : (data.agents || []);
-            const uniqueAgents = [...new Set(agents.map(a => a.agent_id || a.id))];
-            
-            res.json({ 
-              success: true, 
-              api_working: true,
-              unique_agents: uniqueAgents.length,
-              configured_agent_found: uniqueAgents.includes(process.env.RETELL_AGENT_ID),
-              configured_agent_id: process.env.RETELL_AGENT_ID
-            });
-          }
-        } catch (e) {
-          res.json({ 
-            success: false, 
-            error: 'Parse error',
-            details: e.message
-          });
-        }
-      });
-    }).on('error', (error) => {
-      res.json({ success: false, error: error.message });
-    });
-  } catch (error) {
-    res.json({ success: false, error: error.message });
-  }
+  res.json({
+    message: 'API test endpoint',
+    note: 'Credentials hidden for security'
+  });
 });
 
-// Log unmatched requests
-app.use((req, res, next) => {
-  logger.info(`Unmatched: ${req.method} ${req.path}`);
-  res.status(404).json({ error: 'Route not found' });
-});
-
-// Load WebSocket routes for inbound calls
+// Load WebSocket routes for inbound
 require('./lib/routes')({logger, makeService});
 
 // Start server
 server.listen(port, () => {
   logger.info(`Server running on port ${port}`);
-  logger.info(`Retell Agent ID: ${process.env.RETELL_AGENT_ID}`);
-  logger.info('Ready for outbound calls');
+  logger.info('Using SIP dial method for Retell connection');
 });
