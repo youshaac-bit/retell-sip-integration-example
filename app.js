@@ -17,42 +17,102 @@ app.locals = {
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+// Helper function to create Retell phone call
+async function createRetellPhoneCall(callData) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({
+      agent_id: process.env.RETELL_AGENT_ID,
+      from_number: callData.from,
+      to_number: callData.to,
+      direction: "outbound",
+      retell_llm_dynamic_variables: {
+        call_sid: callData.call_sid
+      }
+    });
+
+    const options = {
+      hostname: 'api.retellai.com',
+      path: '/v2/create-phone-call',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+        'Content-Type': 'application/json',
+        'Content-Length': data.length
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk);
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(body);
+          logger.info({result}, 'Retell create call response');
+          resolve(result);
+        } catch (e) {
+          logger.error({error: e, body}, 'Failed to parse Retell response');
+          reject(e);
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      logger.error({error}, 'Retell API request failed');
+      reject(error);
+    });
+    
+    req.write(data);
+    req.end();
+  });
+}
+
 // WEBHOOK ROUTE - Handle outbound calls
 app.post('/outbound-call', async (req, res) => {
   logger.info('=== OUTBOUND CALL WEBHOOK TRIGGERED ===');
   logger.info({body: req.body}, 'Call details received');
   
-  const { call_sid, call_status, direction, from, to } = req.body;
+  const { call_sid, call_status, from, to, sip_status } = req.body;
   
-  if (call_status === 'in-progress' || call_status === 'early-media') {
-    logger.info('Call answered, sending TTS test...');
+  if (call_status === 'in-progress') {
+    logger.info('Call answered, connecting to Retell AI...');
     
-    // METHOD 3: Simple TTS test with correct Jambonz format
-    const response = [
-      {
-        verb: "say",
-        text: "Hello! Testing audio. Can you hear this message? If yes, the audio is working.",
-        synthesizer: {
-          vendor: "google",
-          language: "en-US"
+    try {
+      // METHOD 1: Direct WebSocket connection to Retell
+      const response = [
+        {
+          verb: "connect",
+          url: "wss://api.retellai.com/v1/websocket",
+          method: "websocket",
+          headers: {
+            "Authorization": `Bearer ${process.env.RETELL_API_KEY}`,
+            "Content-Type": "application/json",
+            "x-agent-id": process.env.RETELL_AGENT_ID
+          }
         }
-      },
-      {
-        verb: "pause",
-        length: 5  // Wait 5 seconds before hanging up
-      }
-    ];
+      ];
+      
+      logger.info('Sending WebSocket connect to Retell');
+      logger.info({response: JSON.stringify(response)}, 'Connect verb');
+      res.json(response);
+      
+    } catch (error) {
+      logger.error({error}, 'Failed to connect to Retell');
+      res.json([{
+        verb: "say",
+        text: "Sorry, there was a technical error.",
+        synthesizer: {
+          vendor: "elevenlabs",  // Using the configured TTS
+          voice: "Xb7hH8MSUJpSbSDYk0k2"
+        }
+      }]);
+    }
     
-    logger.info('Sending TTS response to Jambonz');
-    logger.info({response: JSON.stringify(response)}, 'TTS verbs');
-    res.json(response);
-    
-  } else if (call_status === 'trying' || call_status === 'ringing') {
-    // Don't do anything while call is ringing
-    logger.info(`Call ringing - status: ${call_status}`);
+  } else if (call_status === 'early-media') {
+    // Handle early media state
+    logger.info('Call in early-media state, waiting...');
     res.json([]);
   } else {
-    logger.info(`Call status: ${call_status} - no action taken`);
+    logger.info(`Call status: ${call_status} - no action`);
     res.json([]);
   }
 });
@@ -66,6 +126,17 @@ app.post('/call-status', (req, res) => {
     duration
   }, 'Call status update');
   
+  // Log WebSocket connection failures
+  if (call_status === 'completed' && duration < 2) {
+    logger.warn('Call ended quickly - possible WebSocket connection failure');
+  }
+  
+  res.sendStatus(200);
+});
+
+// WebSocket status endpoint
+app.post('/websocket-status', (req, res) => {
+  logger.info({body: req.body}, 'WebSocket status from Jambonz');
   res.sendStatus(200);
 });
 
@@ -77,23 +148,24 @@ app.get('/', (req, res) => {
   res.json({ 
     status: 'running',
     message: 'Retell-Jambonz Integration Active',
-    endpoints: ['/outbound-call', '/call-status'],
+    method: 'Direct WebSocket Connection',
+    endpoints: ['/outbound-call', '/call-status', '/websocket-status'],
     environment: {
       retell_api_key: hasKey ? 'configured' : 'missing',
       retell_agent_id: hasAgent ? 'configured' : 'missing',
-      agent_preview: hasAgent ? process.env.RETELL_AGENT_ID.substring(0, 10) + '...' : 'not set'
+      agent_preview: hasAgent ? process.env.RETELL_AGENT_ID.substring(0, 20) + '...' : 'not set'
     },
-    current_test: 'TTS Audio Test',
     timestamp: new Date().toISOString()
   });
 });
 
-// Test Retell API connection (fixed endpoint)
+// Test Retell API
 app.get('/test-retell', async (req, res) => {
   try {
+    // First test: List agents
     const options = {
       hostname: 'api.retellai.com',
-      path: '/list-agents',  // Fixed: removed /v2
+      path: '/list-agents',
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
@@ -111,26 +183,25 @@ app.get('/test-retell', async (req, res) => {
           if (data.error) {
             res.json({ 
               success: false, 
-              error: data.error,
-              message: 'API key might be invalid'
+              error: data.error
             });
           } else {
             const agents = Array.isArray(data) ? data : (data.agents || []);
+            const uniqueAgents = [...new Set(agents.map(a => a.agent_id || a.id))];
+            
             res.json({ 
               success: true, 
               api_working: true,
-              agents_found: agents.length,
-              agent_ids: agents.map(a => a.agent_id || a.id),
-              configured_agent_found: agents.some(a => 
-                (a.agent_id || a.id) === process.env.RETELL_AGENT_ID
-              )
+              unique_agents: uniqueAgents.length,
+              configured_agent_found: uniqueAgents.includes(process.env.RETELL_AGENT_ID),
+              configured_agent_id: process.env.RETELL_AGENT_ID
             });
           }
         } catch (e) {
           res.json({ 
             success: false, 
-            error: 'Failed to parse response', 
-            raw_response: body.substring(0, 200) 
+            error: 'Parse error',
+            details: e.message
           });
         }
       });
@@ -142,7 +213,7 @@ app.get('/test-retell', async (req, res) => {
   }
 });
 
-// Log all unmatched requests
+// Log unmatched requests
 app.use((req, res, next) => {
   logger.info(`Unmatched: ${req.method} ${req.path}`);
   res.status(404).json({ error: 'Route not found' });
@@ -154,5 +225,6 @@ require('./lib/routes')({logger, makeService});
 // Start server
 server.listen(port, () => {
   logger.info(`Server running on port ${port}`);
-  logger.info('Ready for outbound calls at /outbound-call');
+  logger.info(`Retell Agent ID: ${process.env.RETELL_AGENT_ID}`);
+  logger.info('Ready for outbound calls');
 });
